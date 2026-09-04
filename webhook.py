@@ -36,9 +36,6 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from starlette.status import HTTP_503_SERVICE_UNAVAILABLE
 
-import main
-from main import EscalationHandler, run_pipeline
-
 logger = logging.getLogger("uvicorn.error")
 
 WEBHOOK_SECRET: str = os.getenv("WEBHOOK_SECRET", "")
@@ -129,6 +126,9 @@ def _normalize_jira(body: dict[str, Any]) -> TicketPayload:
 
 def _run_pipeline_sync(ticket_text: str) -> dict[str, Any]:
     """Blocking pipeline call intended to run in a worker thread."""
+    import main
+    from main import EscalationHandler, run_pipeline
+
     kb = main.get_knowledge_base()
     escalator = EscalationHandler()
     return run_pipeline(
@@ -146,6 +146,8 @@ def _run_pipeline_sync(ticket_text: str) -> dict[str, Any]:
 def register_routes(app: FastAPI) -> None:
     @app.get("/health")
     async def health() -> dict[str, Any]:
+        import main
+
         kb = main.get_knowledge_base()
         return {
             "status": "ok",

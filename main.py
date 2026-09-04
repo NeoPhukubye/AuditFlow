@@ -340,7 +340,21 @@ def process_ticket(ticket_text: str, max_retries: int = 2) -> dict:
 
 
 # -------------------------------------------------------------
-# 8. Demonstration & Verification Traces
+# 8. Hosted deploy entry point
+# -------------------------------------------------------------
+# Expose the FastAPI application at ``main:app`` so the service can be served
+# with ``uvicorn main:app`` in hosted/staging environments. The web layer lives
+# in ``webhook.py``; the import is deferred to the bottom of this module so that
+# the pure pipeline (and the CLI demo below) stays importable without FastAPI
+# configured, and to avoid a circular import with ``webhook``.
+try:
+    from webhook import app
+except ImportError:  # pragma: no cover - web layer optional for CLI usage
+    app = None
+
+
+# -------------------------------------------------------------
+# 9. Demonstration & Verification Traces
 # -------------------------------------------------------------
 if __name__ == "__main__":
     # Test Case: A frustrated customer demanding an immediate refund for service downtime
