@@ -1,0 +1,6 @@
+pydantic>=2.5
+google-genai>=2.0
+fastapi>=0.110
+uvicorn>=0.29
+numpy>=1.24
+scikit-learn>=1.3
