@@ -1,0 +1,45 @@
+name: Deploy to GitHub Pages
+
+# Deploys the static AuditFlow frontend (web/) to GitHub Pages on every push
+# to the default branch, and supports manual runs.
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write # required to publish to the gh-pages branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Embed backend API URL into runtime config
+        # The API_URL secret should point at your deployed FastAPI backend
+        # (e.g. https://your-app.onrender.com). It is baked into web/config.json
+        # so the static site knows where to send triage requests at runtime.
+        # When unset, apiBase is empty and the site shows a configuration notice.
+        run: |
+          printf '{"apiBase":"%s"}' "${{ secrets.API_URL }}" > web/config.json
+          echo "config.json: $(cat web/config.json)"
+
+      - name: Validate frontend assets
+        run: |
+          node --check web/app.js
+          node -e "JSON.parse(require('fs').readFileSync('web/config.json','utf8'))"
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./web
+          publish_branch: gh-pages
