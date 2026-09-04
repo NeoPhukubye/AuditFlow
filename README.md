@@ -117,8 +117,11 @@ reply, actions, audit decision and cited KB sources).
 On every push to `main`, the `.github/workflows/pages.yml` workflow:
 
 1. Injects the `API_URL` GitHub secret into `web/config.json` (the backend URL).
-2. Validates the frontend assets.
-3. Publishes `web/` to GitHub Pages (served from the `gh-pages` branch).
+2. Validates the frontend assets (Node syntax check + JSON parse check).
+3. Publishes `web/` to GitHub Pages via the official `configure-pages` /
+   `deploy-pages` Actions, which auto-enables the site (no manual branch setup).
+4. On the first run GitHub creates the `github-pages` deployment environment
+   automatically; subsequent pushes redeploy from `main`.
 
 ### Configure the backend URL
 
