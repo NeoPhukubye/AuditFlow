@@ -1,0 +1,7 @@
+{
+  "id": "ds-001",
+  "title": "Data Loss and Service Degradation Response",
+  "category": "Technical Support",
+  "content": "A reported data loss or service degradation incident is treated as High or Critical priority. The agent should acknowledge the report, confirm a support ticket has been opened, and ask the customer to preserve any relevant client-side logs and error output. Never guarantee data recovery or restoration timelines before engineering has assessed the scope. Internally, route confirmed availability incidents to the incident-response team with the affected region and approximate start time. Do not expose internal server hostnames, database identifiers, or infrastructure paths to the customer.",
+  "tags": ["data loss", "service degradation", "incident response", "priority", "availability"]
+}

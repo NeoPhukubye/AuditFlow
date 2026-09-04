@@ -1,0 +1,7 @@
+{
+  "id": "billing-001",
+  "title": "Billing Review Process",
+  "category": "Billing",
+  "content": "All refund or billing adjustment requests are subject to review by the billing department and are resolved within 3-5 business days. Support agents must never promise or process an immediate refund; instead they should state that the request has been submitted to the billing department for review. Requests must reference the original subscription invoice ID and the customer's billing contact email. Disputed charges for service unavailability are reviewed on a case-by-case basis and may qualify for a service credit rather than a cash refund.",
+  "tags": ["refund", "billing", "disputed charge", "service credit", "3-5 business days"]
+}

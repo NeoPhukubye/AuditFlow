@@ -1,0 +1,7 @@
+{
+  "id": "acct-001",
+  "title": "Account Access Recovery",
+  "category": "Account Access",
+  "content": "For locked-out or compromised accounts, the agent must verify identity using at least two of: the account email, a recent invoice ID, or the billing contact name. Once verified, trigger a password-reset flow or a security review of active sessions. Do not disclose whether an account exists to unverified callers. Reset links expire after 2 hours. If MFA enrollment or suspicious activity is reported, flag the account for the security team within one business hour.",
+  "tags": ["account access", "locked out", "password reset", "mfa", "security review", "identity verification"]
+}

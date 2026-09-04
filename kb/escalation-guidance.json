@@ -1,0 +1,7 @@
+{
+  "id": "esc-001",
+  "title": "Escalation and Human Hand-off Guidance",
+  "category": "General Inquiry",
+  "content": "When a support ticket cannot be resolved within policy and two consecutive drafts are rejected by the compliance auditor, the ticket must be escalated to a human Tier-3 support engineer. Escalation criteria also include: legal or regulatory inquiries, requests involving account takeovers with suspected fraud, compensation demands outside the published pricing, or repeated customer dissatisfaction. The escalation record must include the full ticket text, the last draft, the audit notes, and the number of retry attempts. Do not inform the customer that internal escalation queues are being used; keep the customer reply focused on next steps within policy.",
+  "tags": ["escalation", "human handoff", "tier 3", "policy violation", "fraud"]
+}

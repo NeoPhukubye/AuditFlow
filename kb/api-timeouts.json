@@ -1,0 +1,7 @@
+{
+  "id": "api-001",
+  "title": "Handling API Timeouts and Errors",
+  "category": "Technical Support",
+  "content": "When a customer reports an API timeout or an HTTP error, the agent must never guess at the cause. Collect the following diagnostic fields before troubleshooting: (1) the request ID returned in the X-Request-ID response header, (2) the exact UTC timestamp of the failed call, (3) the HTTP status code and response body, and (4) the API endpoint and SDK version. Reproduce the request with debug logging enabled. Do not disclose internal hostnames, internal IP address ranges, or database schema details. Escalate to Tier 2 only after the request ID is confirmed.",
+  "tags": ["api", "timeout", "request id", "http status code", "x-request-id", "debug logging"]
+}
