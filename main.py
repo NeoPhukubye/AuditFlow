@@ -16,20 +16,21 @@ review queue as a hard failover.
 The Gemini client is initialised lazily so the module can be imported and the
 offline RAG / retrieval path exercised without ``GEMINI_API_KEY`` set.
 """
+
 import json
 import os
 from datetime import datetime, timezone
-from typing import Optional, Literal
+from typing import Literal
 
-from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
+from pydantic import BaseModel, Field
 
 from knowledge_base import (
     KnowledgeBase,
+    RetrievalResult,
     create_knowledge_base,
     format_context_for_prompt,
-    RetrievalResult,
 )
 
 
@@ -37,19 +38,35 @@ from knowledge_base import (
 # 1. Pydantic Schemas for Structured Agent Output
 # -------------------------------------------------------------
 class DraftResolution(BaseModel):
-    category: Literal["Billing", "Technical Support", "Account Access", "General Inquiry"]
+    category: Literal[
+        "Billing", "Technical Support", "Account Access", "General Inquiry"
+    ]
     priority: Literal["Low", "Medium", "High", "Critical"]
-    root_cause_summary: str = Field(description="One-sentence technical summary of the user issue.")
+    root_cause_summary: str = Field(
+        description="One-sentence technical summary of the user issue."
+    )
     proposed_reply: str = Field(description="Customer-facing response draft.")
-    actions_taken: list[str] = Field(description="Specific troubleshooting or backend remediation steps proposed.")
+    actions_taken: list[str] = Field(
+        description="Specific troubleshooting or backend remediation steps proposed."
+    )
 
 
 class AuditEvaluation(BaseModel):
     status: Literal["APPROVED", "REJECTED"]
-    policy_compliant: bool = Field(description="False if promises unauthorized refunds, shares internal secrets, or gives inaccurate guarantees.")
-    tone_acceptable: bool = Field(description="True if empathetic, professional, and directly actionable.")
-    critique_points: list[str] = Field(default_factory=list, description="Specific failure reasons if rejected, empty if approved.")
-    instruction_for_fix: Optional[str] = Field(None, description="Clear, corrective command telling the Drafter how to rewrite.")
+    policy_compliant: bool = Field(
+        description="False if promises unauthorized refunds, shares internal secrets, or gives inaccurate guarantees."
+    )
+    tone_acceptable: bool = Field(
+        description="True if empathetic, professional, and directly actionable."
+    )
+    critique_points: list[str] = Field(
+        default_factory=list,
+        description="Specific failure reasons if rejected, empty if approved.",
+    )
+    instruction_for_fix: str | None = Field(
+        None,
+        description="Clear, corrective command telling the Drafter how to rewrite.",
+    )
 
 
 # -------------------------------------------------------------
@@ -72,8 +89,8 @@ class EscalationHandler:
         self,
         ticket_text: str,
         attempts: int,
-        last_draft: Optional[DraftResolution],
-        last_audit: Optional[AuditEvaluation],
+        last_draft: DraftResolution | None,
+        last_audit: AuditEvaluation | None,
     ) -> dict:
         record = {
             "escalated_at": datetime.now(timezone.utc).isoformat(),
@@ -129,7 +146,7 @@ Only set status to APPROVED if all criteria are met without exception.
 # -------------------------------------------------------------
 # 4. Lazy Gemini Client (deferred so the module imports without a key)
 # -------------------------------------------------------------
-_client: Optional[genai.Client] = None
+_client: genai.Client | None = None
 
 
 def get_client() -> genai.Client:
@@ -138,7 +155,7 @@ def get_client() -> genai.Client:
     if _client is None:
         try:
             _client = genai.Client()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise RuntimeError(
                 "Gemini client could not be initialised. "
                 "Set the GEMINI_API_KEY environment variable."
@@ -151,11 +168,13 @@ def get_client() -> genai.Client:
 # -------------------------------------------------------------
 def draft_agent(
     ticket_text: str,
-    previous_critique: Optional[str] = None,
+    previous_critique: str | None = None,
     kb_context: str = "",
 ) -> DraftResolution:
     """Generate a structured draft, optionally grounded in retrieved KB context."""
-    context_block = f"\n\nRelevant Knowledge-Base Context:\n{kb_context}" if kb_context else ""
+    context_block = (
+        f"\n\nRelevant Knowledge-Base Context:\n{kb_context}" if kb_context else ""
+    )
     if previous_critique:
         context_block += (
             "\n\nCRITICAL FIX REQUIRED (Your previous draft was rejected for the "
@@ -202,11 +221,11 @@ Proposed Draft to Audit:
 # -------------------------------------------------------------
 # 6. Shared Pipeline Components (lazy singletons)
 # -------------------------------------------------------------
-_default_kb: Optional[KnowledgeBase] = None
-_default_escalator: Optional[EscalationHandler] = None
+_default_kb: KnowledgeBase | None = None
+_default_escalator: EscalationHandler | None = None
 
 
-def get_knowledge_base() -> Optional[KnowledgeBase]:
+def get_knowledge_base() -> KnowledgeBase | None:
     """Build (once) and return the shared knowledge base, if available."""
     global _default_kb
     if _default_kb is None:
@@ -231,8 +250,8 @@ def get_escalation_handler() -> EscalationHandler:
 def run_pipeline(
     ticket_text: str,
     max_retries: int = 2,
-    knowledge_base: Optional[KnowledgeBase] = None,
-    escalation_handler: Optional[EscalationHandler] = None,
+    knowledge_base: KnowledgeBase | None = None,
+    escalation_handler: EscalationHandler | None = None,
     verbose: bool = True,
 ) -> dict:
     """Run the drafter -> auditor -> (re)draft loop with hard-failover escalation.
@@ -248,18 +267,22 @@ def run_pipeline(
         kb_results = kb.search(ticket_text, k=3)
         kb_context = format_context_for_prompt(kb_results)
         if verbose and kb_results:
-            print(f"RAG: retrieved {len(kb_results)} KB chunks "
-                  f"(top: '{kb_results[0].chunk.title}').")
+            print(
+                f"RAG: retrieved {len(kb_results)} KB chunks "
+                f"(top: '{kb_results[0].chunk.title}')."
+            )
 
-    feedback: Optional[str] = None
+    feedback: str | None = None
     attempt = 1
-    draft: Optional[DraftResolution] = None
-    audit: Optional[AuditEvaluation] = None
+    draft: DraftResolution | None = None
+    audit: AuditEvaluation | None = None
 
     while attempt <= max_retries:
         if verbose:
             print(f"\n--- [Attempt {attempt}] Running Drafter Agent ---")
-        draft = draft_agent(ticket_text, previous_critique=feedback, kb_context=kb_context)
+        draft = draft_agent(
+            ticket_text, previous_critique=feedback, kb_context=kb_context
+        )
         if verbose:
             print(f"Draft Category: {draft.category} | Priority: {draft.priority}")
 
@@ -289,8 +312,10 @@ def run_pipeline(
         escalation_handler.escalate(ticket_text, attempt - 1, draft, audit)
         escalated = True
         if verbose:
-            print("\n>>> HARD FAILOVER: ticket escalated to human review queue "
-                  "(escalations.jsonl).")
+            print(
+                "\n>>> HARD FAILOVER: ticket escalated to human review queue "
+                "(escalations.jsonl)."
+            )
 
     return {
         "success": False,

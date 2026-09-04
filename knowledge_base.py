@@ -27,19 +27,20 @@ Usage::
     results = kb.search("refund policy", k=3)
     print(format_context_for_prompt(results))
 """
+
 from __future__ import annotations
 
 import glob
 import json
 import os
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional, Protocol, Sequence, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 import numpy as np
 from google import genai
-from google.genai import types
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -60,7 +61,7 @@ class Document:
     title: str
     content: str
     source: str
-    category: Optional[str] = None
+    category: str | None = None
     tags: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -74,10 +75,10 @@ class Chunk:
     title: str
     content: str
     source: str
-    category: Optional[str]
+    category: str | None
     tags: list[str]
     index: int
-    embedding: Optional[np.ndarray] = None
+    embedding: np.ndarray | None = None
 
 
 @dataclass
@@ -114,12 +115,12 @@ class GeminiEmbeddingProvider:
 
     def __init__(
         self,
-        client: Optional[genai.Client] = None,
+        client: genai.Client | None = None,
         model: str = GOOGLE_EMBEDDING_MODEL,
     ) -> None:
         self._model = model
         self._client = client
-        self._dim: Optional[int] = None
+        self._dim: int | None = None
 
     def _client(self) -> genai.Client:
         if self._client is None:
@@ -144,7 +145,9 @@ class GeminiEmbeddingProvider:
     @property
     def dimensionality(self) -> int:
         if self._dim is None:
-            raise RuntimeError("Embedding dimensionality unknown until embed() is called.")
+            raise RuntimeError(
+                "Embedding dimensionality unknown until embed() is called."
+            )
         return self._dim
 
 
@@ -158,7 +161,7 @@ class LocalEmbeddingProvider:
 
     def __init__(self, max_features: int = 4000) -> None:
         self._max_features = max_features
-        self._vectorizer: Optional[TfidfVectorizer] = None
+        self._vectorizer: TfidfVectorizer | None = None
         self._dim: int = 0
 
     def fit(self, texts: Sequence[str]) -> None:
@@ -175,7 +178,9 @@ class LocalEmbeddingProvider:
 
     def embed(self, texts: Sequence[str]) -> np.ndarray:
         if self._vectorizer is None:
-            raise RuntimeError("LocalEmbeddingProvider must be fitted before embedding.")
+            raise RuntimeError(
+                "LocalEmbeddingProvider must be fitted before embedding."
+            )
         matrix = self._vectorizer.transform(list(texts))
         dense = np.asarray(matrix.toarray(), dtype=np.float32)
         return _normalize(dense)
@@ -212,18 +217,16 @@ class VectorStore:
         self._vectors.append(vector)
         self._metadatas.append(metadata)
 
-    def search(self, query: np.ndarray, k: int = 5) -> list[tuple[dict[str, Any], float]]:
+    def search(
+        self, query: np.ndarray, k: int = 5
+    ) -> list[tuple[dict[str, Any], float]]:
         if not self._vectors or k <= 0:
             return []
         q = _normalize(query.reshape(1, -1))[0]
         matrix = np.vstack(self._vectors)
         sims = cosine_similarity(q.reshape(1, -1), matrix)[0]
         top_idx = np.argsort(sims)[::-1][:k]
-        return [
-            (self._metadatas[i], float(sims[i]))
-            for i in top_idx
-            if sims[i] > 0.0
-        ]
+        return [(self._metadatas[i], float(sims[i])) for i in top_idx if sims[i] > 0.0]
 
 
 # --------------------------------------------------------------------- #
@@ -242,17 +245,17 @@ class KnowledgeBase:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self._chunks: list[Chunk] = []
-        self._store: Optional[VectorStore] = None
+        self._store: VectorStore | None = None
 
     # -- construction -------------------------------------------------- #
     @classmethod
     def from_directory(
         cls,
         path: str,
-        provider: Optional[EmbeddingProvider] = None,
+        provider: EmbeddingProvider | None = None,
         chunk_size: int = DEFAULT_CHUNK_SIZE,
         chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
-    ) -> "KnowledgeBase":
+    ) -> KnowledgeBase:
         kb = cls(provider or _select_provider(), chunk_size, chunk_overlap)
         kb.load_directory(path)
         return kb
@@ -269,7 +272,9 @@ class KnowledgeBase:
     # -- document loading --------------------------------------------- #
     def _load_documents(self, path: str) -> list[Document]:
         documents: list[Document] = []
-        for file_path in sorted(glob.glob(os.path.join(path, "**", "*"), recursive=True)):
+        for file_path in sorted(
+            glob.glob(os.path.join(path, "**", "*"), recursive=True)
+        ):
             if not os.path.isfile(file_path):
                 continue
             ext = os.path.splitext(file_path)[1].lower()
@@ -292,7 +297,8 @@ class KnowledgeBase:
             category=data.get("category"),
             tags=list(data.get("tags", [])),
             metadata={
-                k: v for k, v in data.items()
+                k: v
+                for k, v in data.items()
                 if k not in ("id", "title", "content", "category", "tags")
             },
         )
@@ -303,11 +309,13 @@ class KnowledgeBase:
             raw = fh.read()
         stem = Path(file_path).stem
         title = stem.replace("_", " ").title()
-        category: Optional[str] = None
+        category: str | None = None
         content = raw
         frontmatter: dict[str, Any] = {}
         if raw.startswith("---"):
-            match = re.split(r"^---\s*$(.*?)^---\s*$", raw, flags=re.DOTALL | re.MULTILINE)
+            match = re.split(
+                r"^---\s*$(.*?)^---\s*$", raw, flags=re.DOTALL | re.MULTILINE
+            )
             if match:
                 header, content = match[1], match[2]
                 for line in header.strip().splitlines():
@@ -322,7 +330,9 @@ class KnowledgeBase:
             content=content.strip(),
             source=file_path,
             category=category or frontmatter.get("category"),
-            tags=[t.strip() for t in frontmatter.get("tags", "").split(",") if t.strip()],
+            tags=[
+                t.strip() for t in frontmatter.get("tags", "").split(",") if t.strip()
+            ],
             metadata=frontmatter,
         )
 
@@ -370,7 +380,11 @@ class KnowledgeBase:
                 if i == 0:
                     overlapped.append(chunk)
                 else:
-                    tail = merged[i - 1][-self.chunk_overlap:] if len(merged[i - 1]) > self.chunk_overlap else merged[i - 1]
+                    tail = (
+                        merged[i - 1][-self.chunk_overlap :]
+                        if len(merged[i - 1]) > self.chunk_overlap
+                        else merged[i - 1]
+                    )
                     overlapped.append((tail + " " + chunk).strip())
             return overlapped
         return merged
@@ -392,7 +406,7 @@ class KnowledgeBase:
         self,
         query: str,
         k: int = 5,
-        category_filter: Optional[str] = None,
+        category_filter: str | None = None,
     ) -> list[RetrievalResult]:
         if self._store is None or not query.strip():
             return []
@@ -404,7 +418,11 @@ class KnowledgeBase:
             for meta, score in matches
         ]
         if category_filter:
-            results = [r for r in results if (r.chunk.category or "").lower() == category_filter.lower()]
+            results = [
+                r
+                for r in results
+                if (r.chunk.category or "").lower() == category_filter.lower()
+            ]
         return results
 
     @property
@@ -417,9 +435,10 @@ class KnowledgeBase:
 # --------------------------------------------------------------------- #
 def _select_provider() -> EmbeddingProvider:
     """Pick Gemini when a key is available, otherwise fall back to local."""
-    if os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"):
-        if not os.getenv("AUDITFLOW_FORCE_LOCAL_KB"):
-            return GeminiEmbeddingProvider()
+    has_key = bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
+    force_local = bool(os.getenv("AUDITFLOW_FORCE_LOCAL_KB"))
+    if has_key and not force_local:
+        return GeminiEmbeddingProvider()
     return LocalEmbeddingProvider()
 
 
@@ -429,10 +448,14 @@ def create_knowledge_base(
     chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
 ) -> KnowledgeBase:
     """Build a ``KnowledgeBase`` from ``path`` using the best available provider."""
-    return KnowledgeBase.from_directory(path, _select_provider(), chunk_size, chunk_overlap)
+    return KnowledgeBase.from_directory(
+        path, _select_provider(), chunk_size, chunk_overlap
+    )
 
 
-def format_context_for_prompt(results: Sequence[RetrievalResult], max_chars: int = MAX_RESULT_CHARS) -> str:
+def format_context_for_prompt(
+    results: Sequence[RetrievalResult], max_chars: int = MAX_RESULT_CHARS
+) -> str:
     """Format retrieval results into a compact, citable context block."""
     if not results:
         return ""
@@ -441,7 +464,7 @@ def format_context_for_prompt(results: Sequence[RetrievalResult], max_chars: int
         excerpt = result.chunk.content[:max_chars]
         category = result.chunk.category or "General"
         lines.append(
-            f"[{i}] KB Title: \"{result.chunk.title}\" "
+            f'[{i}] KB Title: "{result.chunk.title}" '
             f"(category: {category}) | relevance: {result.score:.2f} | source: {result.chunk.source}"
         )
         lines.append(f"    Excerpt: {excerpt}")

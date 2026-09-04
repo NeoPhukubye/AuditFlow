@@ -21,13 +21,14 @@ Security
 If the ``WEBHOOK_SECRET`` environment variable is set, every POST is gated by
 an ``X-Webhook-Secret`` header comparison. Omit it for open local testing.
 """
+
 from __future__ import annotations
 
 import asyncio
 import hmac
 import logging
 import os
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
@@ -54,8 +55,8 @@ class TicketPayload(BaseModel):
     source: str = Field(default="generic", description="Originating system.")
     subject: str = Field(default="", description="Short subject/summary line.")
     description: str = Field(..., description="Full customer description of the issue.")
-    customer_email: Optional[str] = None
-    priority: Optional[str] = None
+    customer_email: str | None = None
+    priority: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -150,7 +151,9 @@ def register_routes(app: FastAPI) -> None:
             "status": "ok",
             "knowledge_base_loaded": kb is not None,
             "kb_chunks": kb.chunk_count if kb is not None else 0,
-            "gemini_configured": bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")),
+            "gemini_configured": bool(
+                os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+            ),
             "webhook_secret_configured": bool(WEBHOOK_SECRET),
         }
 
@@ -163,7 +166,7 @@ def register_routes(app: FastAPI) -> None:
         body = await request.json()
         try:
             payload = _normalize_zendesk(body)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise HTTPException(
                 status_code=422,
                 detail=f"Unparseable Zendesk payload: {exc}",
@@ -175,7 +178,7 @@ def register_routes(app: FastAPI) -> None:
         body = await request.json()
         try:
             payload = _normalize_jira(body)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise HTTPException(
                 status_code=422,
                 detail=f"Unparseable Jira payload: {exc}",
@@ -184,7 +187,11 @@ def register_routes(app: FastAPI) -> None:
 
     async def _process(payload: TicketPayload) -> WebhookResponse:
         ticket_text = _compose_ticket_text(payload)
-        logger.info("Received ticket %s (%s); running triage pipeline.", payload.ticket_id, payload.source)
+        logger.info(
+            "Received ticket %s (%s); running triage pipeline.",
+            payload.ticket_id,
+            payload.source,
+        )
         try:
             result = await asyncio.wait_for(
                 run_in_threadpool(_run_pipeline_sync, ticket_text),
@@ -200,7 +207,9 @@ def register_routes(app: FastAPI) -> None:
                 status_code=HTTP_503_SERVICE_UNAVAILABLE,
                 detail=str(exc),
             )
-        return WebhookResponse(ticket_id=payload.ticket_id, source=payload.source, result=result)
+        return WebhookResponse(
+            ticket_id=payload.ticket_id, source=payload.source, result=result
+        )
 
 
 # -------------------------------------------------------------
@@ -234,4 +243,6 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host=os.getenv("HOST", "0.0.0.0"), port=int(os.getenv("PORT", "8000")))
+    uvicorn.run(
+        app, host=os.getenv("HOST", "0.0.0.0"), port=int(os.getenv("PORT", "8000"))
+    )
