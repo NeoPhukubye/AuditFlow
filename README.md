@@ -107,6 +107,46 @@ extend the RAG coverage; it is indexed automatically on startup.
 | `WEBHOOK_SECRET`            | unset       | Shared secret for webhook endpoints.         |
 | `HOST` / `PORT`             | `0.0.0.0` / `8000` | Webhook server bind address.         |
 
+## Web Frontend & GitHub Pages
+
+A dependency-free static frontend lives in `web/` (`index.html`,
+`style.css`, `app.js`). It exposes a live demo form that submits a ticket to
+your deployed FastAPI backend and renders the triage result (category, draft
+reply, actions, audit decision and cited KB sources).
+
+On every push to `main`, the `.github/workflows/pages.yml` workflow:
+
+1. Injects the `API_URL` GitHub secret into `web/config.json` (the backend URL).
+2. Validates the frontend assets.
+3. Publishes `web/` to GitHub Pages (served from the `gh-pages` branch).
+
+### Configure the backend URL
+
+Set a repository secret named **`API_URL`** pointing at your deployed backend,
+for example `https://your-app.onrender.com`. When unset, the site shows a
+"backend not configured" notice.
+
+### Deploy the backend
+
+GitHub Pages is static-hosting only; the FastAPI backend runs separately. The
+deploy command targets the ASGI app exposed on `main` (so host with
+`uvicorn main:app`) — the same entry the earlier Render deploy used:
+
+```bash
+export GEMINI_API_KEY="your-api-key"
+export WEBHOOK_SECRET="your-secret"      # optional
+uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+Platforms that build from the `requirements.txt` and run `uvicorn main:app`
+(e.g. Render, Fly.io) work out of the box.
+
+### Run the frontend locally
+
+```bash
+python3 -m http.server 8000 --directory web
+```
+
 ## License
 
 MIT
