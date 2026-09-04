@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AuditFlow — Automated Support Triage</title>
+  <meta name="description" content="AuditFlow runs a Drafter &amp; Auditor agent pair to triage support tickets with strict policy compliance, RAG grounding, and automatic human escalation." />
+  <link rel="stylesheet" href="./style.css" />
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <header class="hero">
+    <h1>AuditFlow</h1>
+    <p class="tagline">Two-agent support triage &middot; policy compliance &middot; automatic human escalation</p>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li><strong>Drafter (Generator)</strong> classifies the ticket, diagnoses the cause and drafts a reply, grounded by a knowledge base.</li>
+        <li><strong>Auditor (Discriminator)</strong> strictly verifies the draft against company policy and either approves it or issues a fix command.</li>
+        <li><strong>Refine &amp; Escalate</strong> the fix is fed back into the Drafter; if two attempts are rejected, the ticket is handed to a human.</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>Live Demo</h2>
+      <p class="muted">Submit a ticket below. The request is sent to the AuditFlow backend (FastAPI webhook) which runs the full triage pipeline.</p>
+
+      <div class="status-bar">
+        <span id="api-status">checking backend…</span>
+        <button id="refresh-status" type="button">refresh</button>
+      </div>
+
+      <form id="ticket-form">
+        <label>
+          <span>Channel</span>
+          <select name="source" id="source">
+            <option value="generic">Generic</option>
+            <option value="zendesk">Zendesk</option>
+            <option value="jira">Jira</option>
+          </select>
+        </label>
+        <label>
+          <span>Subject</span>
+          <input name="subject" id="subject" placeholder="Short summary" />
+        </label>
+        <label>
+          <span>Description</span>
+          <textarea name="description" id="description" rows="5"
+            placeholder="Full customer description of the issue…" required></textarea>
+        </label>
+        <label>
+          <span>Customer email (optional)</span>
+          <input name="customer_email" id="customer_email" type="email" placeholder="customer@example.com" />
+        </label>
+        <button type="submit">Run Triage</button>
+      </form>
+    </section>
+
+    <section class="card" id="result-card" hidden>
+      <h2>Result</h2>
+      <div id="result"></div>
+    </section>
+
+    <section class="card config-hint" id="config-hint">
+      <h2>Backend not configured</h2>
+      <p id="config-msg">Set the <code>API_URL</code> repository secret to your deployed AuditFlow backend (e.g. <code>https://your-app.onrender.com</code>), then redeploy this site.</p>
+    </section>
+
+    <section class="card">
+      <h2>Endpoints</h2>
+      <table class="api-table">
+        <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td>GET</td><td>/health</td><td>Liveness + component status.</td></tr>
+          <tr><td>POST</td><td>/webhooks/ticket</td><td>Accept a normalised ticket.</td></tr>
+          <tr><td>POST</td><td>/webhooks/zendesk</td><td>Accept a Zendesk payload.</td></tr>
+          <tr><td>POST</td><td>/webhooks/jira</td><td>Accept a Jira payload.</td></tr>
+        </tbody>
+      </table>
+      <p class="muted">See the <a href="https://github.com/NeoPhukubye/AuditFlow">README</a> for setup.</p>
+    </section>
+  </main>
+
+  <footer>
+    <small>AuditFlow &middot; built with Pydantic, the Google GenAI SDK, and FastAPI.</small>
+  </footer>
+
+  <script src="./app.js" type="module"></script>
+</body>
+</html>
