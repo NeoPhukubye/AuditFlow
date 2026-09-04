@@ -1,7 +1,12 @@
 name: Deploy to GitHub Pages
 
 # Deploys the static AuditFlow frontend (web/) to GitHub Pages on every push
-# to the default branch, and supports manual runs.
+# to the default branch (and on manual runs). Uses the official GitHub Pages
+# Actions so the site is enabled and deployed automatically on first run.
+#
+# NOTE: set a repository secret named API_URL to your deployed FastAPI backend
+# URL (e.g. https://your-app.onrender.com) so the frontend knows where to send
+# triage requests. When unset, the site shows a "backend not configured" notice.
 
 on:
   push:
@@ -9,14 +14,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # required to publish to the gh-pages branch
+  contents: read   # checkout
+  pages: write     # publish to GitHub Pages
+  id-token: write  # OIDC token for Pages publishing
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -24,10 +31,6 @@ jobs:
           node-version: "20"
 
       - name: Embed backend API URL into runtime config
-        # The API_URL secret should point at your deployed FastAPI backend
-        # (e.g. https://your-app.onrender.com). It is baked into web/config.json
-        # so the static site knows where to send triage requests at runtime.
-        # When unset, apiBase is empty and the site shows a configuration notice.
         run: |
           printf '{"apiBase":"%s"}' "${{ secrets.API_URL }}" > web/config.json
           echo "config.json: $(cat web/config.json)"
@@ -37,9 +40,22 @@ jobs:
           node --check web/app.js
           node -e "JSON.parse(require('fs').readFileSync('web/config.json','utf8'))"
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Setup GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./web
-          publish_branch: gh-pages
+          path: ./web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
