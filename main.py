@@ -18,6 +18,7 @@ offline RAG / retrieval path exercised without ``GEMINI_API_KEY`` set.
 """
 
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from typing import Literal
@@ -32,6 +33,8 @@ from knowledge_base import (
     create_knowledge_base,
     format_context_for_prompt,
 )
+
+logger = logging.getLogger("auditflow.pipeline")
 
 
 # -------------------------------------------------------------
@@ -232,7 +235,9 @@ def get_knowledge_base() -> KnowledgeBase | None:
         try:
             _default_kb = create_knowledge_base("kb")
         except Exception as exc:  # noqa: BLE001
-            print(f"[warn] Knowledge base unavailable ({exc}); continuing without RAG.")
+            logger.warning(
+                "Knowledge base unavailable (%s); continuing without RAG.", exc
+            )
     return _default_kb
 
 
@@ -267,9 +272,10 @@ def run_pipeline(
         kb_results = kb.search(ticket_text, k=3)
         kb_context = format_context_for_prompt(kb_results)
         if verbose and kb_results:
-            print(
-                f"RAG: retrieved {len(kb_results)} KB chunks "
-                f"(top: '{kb_results[0].chunk.title}')."
+            logger.info(
+                "RAG: retrieved %d KB chunks (top: '%s').",
+                len(kb_results),
+                kb_results[0].chunk.title,
             )
 
     feedback: str | None = None
@@ -279,18 +285,22 @@ def run_pipeline(
 
     while attempt <= max_retries:
         if verbose:
-            print(f"\n--- [Attempt {attempt}] Running Drafter Agent ---")
+            logger.info("--- [Attempt %d] Running Drafter Agent ---", attempt)
         draft = draft_agent(
             ticket_text, previous_critique=feedback, kb_context=kb_context
         )
         if verbose:
-            print(f"Draft Category: {draft.category} | Priority: {draft.priority}")
+            logger.info(
+                "Draft Category: %s | Priority: %s",
+                draft.category,
+                draft.priority,
+            )
 
         if verbose:
-            print("--- Running Compliance Auditor Agent ---")
+            logger.info("--- Running Compliance Auditor Agent ---")
         audit = audit_agent(ticket_text, draft)
         if verbose:
-            print(f"Auditor Decision: {audit.status}")
+            logger.info("Auditor Decision: %s", audit.status)
 
         if audit.status == "APPROVED":
             return {
@@ -302,7 +312,7 @@ def run_pipeline(
             }
 
         if verbose:
-            print(f"Critique: {audit.critique_points}")
+            logger.info("Critique: %s", audit.critique_points)
         feedback = audit.instruction_for_fix
         attempt += 1
 
@@ -312,8 +322,8 @@ def run_pipeline(
         escalation_handler.escalate(ticket_text, attempt - 1, draft, audit)
         escalated = True
         if verbose:
-            print(
-                "\n>>> HARD FAILOVER: ticket escalated to human review queue "
+            logger.warning(
+                "HARD FAILOVER: ticket escalated to human review queue "
                 "(escalations.jsonl)."
             )
 
