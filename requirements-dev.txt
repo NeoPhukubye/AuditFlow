@@ -1,0 +1,4 @@
+AuditFlow development dependencies.
+
+Install with:
+    pip install -r requirements-dev.txt
