@@ -44,8 +44,14 @@ the retrieval path runs fully offline.
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-export GEMINI_API_KEY="your-api-key"
+pip install -r requirements-dev.txt  # ruff, pytest (optional)
+export GEMINI_API_KEY="your-api-key"  # required for live LLM calls only
 ```
+
+> **Offline mode:** no `GEMINI_API_KEY` is needed for local development.
+> The RAG layer falls back to a local TF-IDF provider automatically
+> (controlled by `AUDITFLOW_FORCE_LOCAL_KB`), and the pipeline runs
+> end-to-end without any cloud credentials.
 
 ## Usage
 
