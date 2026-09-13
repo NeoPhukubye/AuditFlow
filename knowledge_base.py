@@ -122,7 +122,7 @@ class GeminiEmbeddingProvider:
         self._client = client
         self._dim: int | None = None
 
-    def _client(self) -> genai.Client:
+    def _get_client(self) -> genai.Client:
         if self._client is None:
             self._client = genai.Client()
         return self._client
@@ -133,7 +133,7 @@ class GeminiEmbeddingProvider:
     def embed(self, texts: Sequence[str]) -> np.ndarray:
         if not texts:
             return np.zeros((0, 0), dtype=np.float32)
-        response = self._client().models.embed_content(
+        response = self._get_client().models.embed_content(
             model=self._model,
             contents=list(texts),
         )
