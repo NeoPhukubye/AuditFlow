@@ -62,3 +62,23 @@ def test_local_provider_is_idempotent_across_repeats():
     first = kb.search("service timeout", k=3)
     second = kb.search("service timeout", k=3)
     assert [r.chunk.chunk_id for r in first] == [r.chunk.chunk_id for r in second]
+
+
+def test_gemini_provider_has_get_client_method():
+    """Regression test: _get_client must be a method, not shadowed by
+    the _client attribute (see the _client() vs self._client collision)."""
+    from knowledge_base import GeminiEmbeddingProvider
+
+    provider = GeminiEmbeddingProvider()
+    assert callable(provider._get_client)
+    assert not callable(provider._client)
+
+
+def test_format_context_empty_results():
+    assert format_context_for_prompt([]) == ""
+
+
+def test_search_category_filter_no_match():
+    kb = create_knowledge_base("kb")
+    results = kb.search("refund", k=5, category_filter="NonExistent")
+    assert results == []

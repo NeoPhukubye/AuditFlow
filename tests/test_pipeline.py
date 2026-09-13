@@ -162,3 +162,34 @@ def test_no_kb_still_runs_pipeline():
         verbose=False,
     )
     assert result["success"] is True
+
+
+def test_escalation_handler_creates_nested_dirs(tmp_path):
+    from main import EscalationHandler
+
+    dest = str(tmp_path / "nested" / "dir" / "escalations.jsonl")
+    handler = EscalationHandler(dest)
+    record = handler.escalate("test ticket", 2, None, None)
+    assert record["ticket_text"] == "test ticket"
+    assert record["attempts"] == 2
+    import json
+
+    with open(dest) as fh:
+        loaded = json.loads(fh.read())
+    assert loaded["ticket_text"] == "test ticket"
+
+
+def test_main_exports():
+    import main
+
+    for name in main.__all__:
+        assert hasattr(main, name), f"main.__all__ references missing name: {name}"
+
+
+def test_knowledge_base_exports():
+    import knowledge_base
+
+    for name in knowledge_base.__all__:
+        assert hasattr(knowledge_base, name), (
+            f"knowledge_base.__all__ references missing name: {name}"
+        )
