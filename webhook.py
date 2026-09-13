@@ -242,6 +242,19 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
+__all__ = [
+    "PIPELINE_TIMEOUT_SECONDS",
+    "WEBHOOK_SECRET",
+    "TicketPayload",
+    "WebhookResponse",
+    "_normalize_jira",
+    "_normalize_zendesk",
+    "app",
+    "create_app",
+    "register_routes",
+]
+
+
 if __name__ == "__main__":
     import uvicorn
 

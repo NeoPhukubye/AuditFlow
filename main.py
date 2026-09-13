@@ -357,6 +357,22 @@ def process_ticket(ticket_text: str, max_retries: int = 2) -> dict:
 # in ``webhook.py``; the import is deferred to the bottom of this module so that
 # the pure pipeline (and the CLI demo below) stays importable without FastAPI
 # configured, and to avoid a circular import with ``webhook``.
+
+__all__ = [
+    "AUDITOR_SYSTEM_INSTRUCTION",
+    "COMPANY_POLICY",
+    "DRAFTER_SYSTEM_INSTRUCTION",
+    "AuditEvaluation",
+    "DraftResolution",
+    "EscalationHandler",
+    "app",
+    "audit_agent",
+    "draft_agent",
+    "get_client",
+    "process_ticket",
+    "run_pipeline",
+]
+
 try:
     from webhook import app
 except ImportError:  # pragma: no cover - web layer optional for CLI usage
@@ -377,8 +393,8 @@ if __name__ == "__main__":
     kb = get_knowledge_base()
     if kb is not None:
         results = kb.search(test_ticket, k=3)
-        print("\n=== Retrieval-Augmented Context (RAG) ===")
-        print(format_context_for_prompt(results) or "(no KB hits)")
+        logger.info("=== Retrieval-Augmented Context (RAG) ===")
+        logger.info(format_context_for_prompt(results) or "(no KB hits)")
 
     try:
         result = process_ticket(test_ticket)
@@ -389,5 +405,5 @@ if __name__ == "__main__":
             "note": "Set GEMINI_API_KEY to run the live two-agent verification loop.",
         }
 
-    print("\n================ FINAL SYSTEM RESULT ================")
-    print(json.dumps(result, indent=2))
+    logger.info("================ FINAL SYSTEM RESULT ================")
+    logger.info(json.dumps(result, indent=2))

@@ -469,3 +469,17 @@ def format_context_for_prompt(
         )
         lines.append(f"    Excerpt: {excerpt}")
     return "\n".join(lines)
+
+
+__all__ = [
+    "Chunk",
+    "Document",
+    "EmbeddingProvider",
+    "GeminiEmbeddingProvider",
+    "KnowledgeBase",
+    "LocalEmbeddingProvider",
+    "RetrievalResult",
+    "VectorStore",
+    "create_knowledge_base",
+    "format_context_for_prompt",
+]
