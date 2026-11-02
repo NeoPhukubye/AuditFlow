@@ -417,7 +417,7 @@ def cli(argv: list[str] | None = None) -> int:
     if args.output:
         with open(args.output, "w", encoding="utf-8") as fh:
             fh.write(output + "\n")
-    return 0 if result.get("success") or result.get("escalated") else 1
+    return 0 if result.get("success") else 1
 
 
 # -------------------------------------------------------------
