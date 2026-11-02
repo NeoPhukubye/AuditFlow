@@ -28,6 +28,7 @@ import asyncio
 import hmac
 import logging
 import os
+import uuid
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
@@ -188,9 +189,11 @@ def register_routes(app: FastAPI) -> None:
         return await _process(payload)
 
     async def _process(payload: TicketPayload) -> WebhookResponse:
+        correlation_id = uuid.uuid4().hex[:12]
         ticket_text = _compose_ticket_text(payload)
         logger.info(
-            "Received ticket %s (%s); running triage pipeline.",
+            "[%s] Received ticket %s (%s); running triage pipeline.",
+            correlation_id,
             payload.ticket_id,
             payload.source,
         )
@@ -202,12 +205,16 @@ def register_routes(app: FastAPI) -> None:
         except asyncio.TimeoutError:
             raise HTTPException(
                 status_code=HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Ticket processing exceeded the configured timeout.",
+                detail=(
+                    "Ticket processing exceeded the configured timeout "
+                    f"({PIPELINE_TIMEOUT_SECONDS}s). "
+                    f"[correlation_id={correlation_id}]"
+                ),
             )
         except RuntimeError as exc:
             raise HTTPException(
                 status_code=HTTP_503_SERVICE_UNAVAILABLE,
-                detail=str(exc),
+                detail=f"{exc} [correlation_id={correlation_id}]",
             )
         return WebhookResponse(
             ticket_id=payload.ticket_id, source=payload.source, result=result
