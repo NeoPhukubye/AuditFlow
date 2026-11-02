@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import glob
 import json
+import logging
 import os
 import re
 from collections.abc import Sequence
@@ -43,6 +44,8 @@ import numpy as np
 from google import genai
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+logger = logging.getLogger("auditflow.knowledge_base")
 
 GOOGLE_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "text-embedding-004")
 DEFAULT_CHUNK_SIZE = 500
@@ -278,10 +281,13 @@ class KnowledgeBase:
             if not os.path.isfile(file_path):
                 continue
             ext = os.path.splitext(file_path)[1].lower()
-            if ext == ".json":
-                documents.append(self._load_json_doc(file_path))
-            elif ext in (".md", ".txt"):
-                documents.append(self._load_text_doc(file_path))
+            try:
+                if ext == ".json":
+                    documents.append(self._load_json_doc(file_path))
+                elif ext in (".md", ".txt"):
+                    documents.append(self._load_text_doc(file_path))
+            except Exception as exc:  # noqa: BLE001 - skip bad articles, keep indexing
+                logger.warning("Skipping unreadable KB article %s: %s", file_path, exc)
         return documents
 
     @staticmethod
