@@ -17,6 +17,7 @@ The Gemini client is initialised lazily so the module can be imported and the
 offline RAG / retrieval path exercised without ``GEMINI_API_KEY`` set.
 """
 
+import argparse
 import json
 import logging
 import os
@@ -349,6 +350,76 @@ def process_ticket(ticket_text: str, max_retries: int = 2) -> dict:
     )
 
 
+def cli(argv: list[str] | None = None) -> int:
+    """Command-line interface for running the AuditFlow pipeline.
+
+    Usage:
+        python main.py --ticket "I demand a refund"
+        python main.py --ticket "refund please" --max-retries 3 --quiet
+        python main.py --demo
+    """
+    parser = argparse.ArgumentParser(
+        prog="auditflow",
+        description="Run the AuditFlow drafter/auditor triage pipeline.",
+    )
+    parser.add_argument(
+        "--ticket",
+        "-t",
+        help="Ticket text to triage. If omitted, runs the built-in demo ticket.",
+    )
+    parser.add_argument(
+        "--max-retries",
+        "-r",
+        type=int,
+        default=2,
+        help="Maximum draft/audit retry attempts before escalation (default: 2).",
+    )
+    parser.add_argument(
+        "--quiet",
+        "-q",
+        action="store_true",
+        help="Suppress progress logging; print only the final JSON result.",
+    )
+    parser.add_argument(
+        "--demo",
+        action="store_true",
+        help="Run the built-in demo ticket (refund / service-downtime scenario).",
+    )
+    parser.add_argument(
+        "--output",
+        "-o",
+        help="Write the result JSON to this file in addition to stdout.",
+    )
+    args = parser.parse_args(argv)
+
+    if args.quiet:
+        logging.getLogger("auditflow.pipeline").setLevel(logging.WARNING)
+
+    if args.demo or args.ticket is None:
+        ticket_text = (
+            "Your service has been down for 4 hours! I lost client data on production database db-prod-01. "
+            "I demand an immediate full refund of my R1,500 subscription and an explanation!"
+        )
+    else:
+        ticket_text = args.ticket
+
+    try:
+        result = process_ticket(ticket_text, max_retries=args.max_retries)
+    except RuntimeError as exc:
+        result = {
+            "success": False,
+            "error": str(exc),
+            "note": "Set GEMINI_API_KEY to run the live two-agent verification loop.",
+        }
+
+    output = json.dumps(result, indent=2, ensure_ascii=False)
+    print(output)
+    if args.output:
+        with open(args.output, "w", encoding="utf-8") as fh:
+            fh.write(output + "\n")
+    return 0 if result.get("success") or result.get("escalated") else 1
+
+
 # -------------------------------------------------------------
 # 8. Hosted deploy entry point
 # -------------------------------------------------------------
@@ -367,6 +438,7 @@ __all__ = [
     "EscalationHandler",
     "app",
     "audit_agent",
+    "cli",
     "draft_agent",
     "get_client",
     "process_ticket",
@@ -383,27 +455,4 @@ except ImportError:  # pragma: no cover - web layer optional for CLI usage
 # 9. Demonstration & Verification Traces
 # -------------------------------------------------------------
 if __name__ == "__main__":
-    # Test Case: A frustrated customer demanding an immediate refund for service downtime
-    test_ticket = (
-        "Your service has been down for 4 hours! I lost client data on production database db-prod-01. "
-        "I demand an immediate full refund of my R1,500 subscription and an explanation!"
-    )
-
-    # Always demonstrate the offline-capable RAG retrieval layer first.
-    kb = get_knowledge_base()
-    if kb is not None:
-        results = kb.search(test_ticket, k=3)
-        logger.info("=== Retrieval-Augmented Context (RAG) ===")
-        logger.info(format_context_for_prompt(results) or "(no KB hits)")
-
-    try:
-        result = process_ticket(test_ticket)
-    except RuntimeError as exc:
-        result = {
-            "success": False,
-            "error": str(exc),
-            "note": "Set GEMINI_API_KEY to run the live two-agent verification loop.",
-        }
-
-    logger.info("================ FINAL SYSTEM RESULT ================")
-    logger.info(json.dumps(result, indent=2))
+    raise SystemExit(cli())
