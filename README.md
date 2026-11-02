@@ -65,6 +65,27 @@ This runs the end-to-end Drafter → Auditor loop against a sample ticket that
 demands an immediate refund, printing the RAG retrieval, each attempt's
 decision, and the final result.
 
+#### Run from the command line (CLI)
+
+`main.py` doubles as a CLI for triaging arbitrary tickets offline (no
+`GEMINI_API_KEY` needed; the local TF-IDF KB provider is used automatically):
+
+```bash
+# Triage a custom ticket
+python main.py --ticket "I demand an immediate refund of my subscription."
+
+# More retries, quiet output, write result to a file
+python main.py --ticket "API timeout since 14:00 UTC" --max-retries 3 --quiet \
+  --output result.json
+
+# Run the built-in demo ticket
+python main.py --demo
+```
+
+Flags: `--ticket/-t`, `--max-retries/-r`, `--quiet/-q`, `--demo`, `--output/-o`.
+The CLI exits `0` when the auditor approves the draft, and non-zero on
+rejection, escalation, or configuration error.
+
 ### Ingest tickets over HTTP (webhook)
 
 ```bash
